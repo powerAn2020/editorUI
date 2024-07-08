@@ -3,10 +3,15 @@
     <van-nav-bar title="Editor For KSU">
     </van-nav-bar>
     <van-space>
-      <van-button type="primary" size="mini" icon="replay" plain @click="reload()">重载</van-button>
-      <van-button type="primary" size="mini" icon="plus" plain @click="update()">保存</van-button>
-      <van-button type="primary" size="mini" icon="todo-list-o" plain @click="reload()">加载日志</van-button>
-      <van-button type="primary" size="mini" icon="replay" plain>卸载保留数据</van-button>
+      <van-button type="primary" size="mini" icon="replay" plain @click="reload()">重载配置</van-button>
+      <van-button type="primary" size="mini" icon="plus" plain @click="update()">保存配置</van-button>
+      <van-button type="primary" size="mini" icon="todo-list-o" plain @click="loadLog()">加载日志</van-button>
+      <!-- <van-button type="primary" size="mini" icon="replay" plain>卸载保留数据</van-button> -->
+      <van-cell center title="卸载保留数据">
+        <template #right-icon>
+          <van-switch v-model="checked" size="22px" :loading="loading" />
+        </template>
+      </van-cell>
     </van-space>
     <Codemirror v-model:value="code" :options="cmOptions" border ref="cmRef" height="100vh" width="100%"
       @change="onChange" @input="onInput" @ready="onReady">
@@ -16,12 +21,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { exec } from 'kernelsu';
 import "codemirror/mode/shell/shell"
 import Codemirror from "codemirror-editor-vue3"
+import {Buffer} from 'buffer'
 
 const theme = ref();
+const checked = ref(false);
+const loading = ref(false);
+const code = ref(`
+ls la
+`)
+const logFile='/data/adb/crond/run.log'
+const rootCronFile='/data/adb/crond/root'
 const execCmd = async (cmd) => {
   console.info(cmd)
   const { errno, stdout, stderr } = await exec(cmd, { cwd: '/' });
@@ -32,6 +45,12 @@ const execCmd = async (cmd) => {
   } else {
     console.info(stderr)
   }
+}
+const readFile = async (filePath) => {
+  return Buffer.from(await execCmd(`base64 -w 0 ${filePath}`), "base64").toString('utf-8')
+}
+const saveFile = (content, filePath) => {
+  return execCmd(`echo ${Buffer.from(content).toString("base64")} | base64 -d > ${filePath}`)
 }
 execCmd('settings get secure ui_night_mode').then(v => {
   // 0 表示跟随系统设置，即当前模式与系统设置的主题模式相匹配。
@@ -44,18 +63,7 @@ execCmd('settings get secure ui_night_mode').then(v => {
   }
 });
 
-//读取定时任务信息
-execCmd(`cat /data/adb/crond/root`).then(v => {
 
-});
-//读取执行日志
-execCmd(`cat /data/adb/crond/run.log`).then(v => {
-
-});
-const code = ref(
-  `0 */12 * * * echo 111
-`
-)
 const cmRef = ref()
 const cmOptions = {
   mode: "text/x-sh"
@@ -90,7 +98,39 @@ onMounted(() => {
 
 onUnmounted(() => {
   cmRef.value?.destroy()
-}) 
+})
+//重新加载配置
+const reload = () => {
+//读取定时任务信息
+code.value=readFile(`${rootCronFile}`)
+}
+//更新配置
+const update = () => {
+//读取定时任务信息
+saveFile(code.value,`${rootCronFile}`)
+}
+//读取配置文件
+const loadLog = () => {
+  code.value=readFile(`${logFile}`)
+
+}
+//开关切换
+watch(checked, (theme, prevtheme) => {
+  loading.value = true;
+  let cmd = "touch /data/adb/crond/KEEP_ON_UNINSTALL"
+  if (theme) {
+    cmd = "rm -f /data/adb/crond/KEEP_ON_UNINSTALL"
+  }
+  // execCmd(cmd).then(v => {
+  //   console.log(v)
+  // });
+  setTimeout(() => {
+    loading.value = false;
+  }, 1000);
+}, {
+  immediate: true
+})
+reload()
 </script>
 
 <style>

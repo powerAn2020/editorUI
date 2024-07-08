@@ -4,10 +4,11 @@
   "version": "1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --force",
     "build": "vite build"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
     "codemirror": "^5.65.16",
     "codemirror-editor-vue3": "^2.7.0",
     "kernelsu": "^1.0.6",
@@ -22,5 +23,8 @@
     "unplugin-auto-import": "^0.17.5",
     "unplugin-vue-components": "^0.26.0",
     "vite": "^5.1.6"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.9.5"
   }
 }
